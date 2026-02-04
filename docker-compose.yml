@@ -1,0 +1,15 @@
+services:
+  webcam-gif:
+    build: .
+    container_name: webcam-gif-capture
+    ports:
+      - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - TZ=Europe/Madrid
+      - NODE_ENV=production
+      - DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

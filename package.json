@@ -1,0 +1,26 @@
+{
+  "name": "webcam-gif-capture",
+  "version": "1.0.0",
+  "description": "Captures images from a webcam around sunrise/sunset and generates GIF animations",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "keywords": [
+    "webcam",
+    "gif",
+    "timelapse",
+    "sunrise",
+    "sunset"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "canvas": "^2.11.2",
+    "express": "^4.18.2",
+    "gif-encoder-2": "^1.0.5",
+    "node-cron": "^3.0.3",
+    "sharp": "^0.33.2"
+  }
+}
