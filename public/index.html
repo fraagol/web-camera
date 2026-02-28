@@ -675,7 +675,7 @@
         videoHtml = `
           <div class="video-section">
             <h3>🎬 Video - ${date}</h3>
-            <video controls preload="metadata">
+            <video controls autoplay muted loop preload="metadata">
               <source src="${v.path}" type="video/mp4">
               Your browser does not support the video element.
             </video>
