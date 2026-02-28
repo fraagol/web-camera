@@ -6,7 +6,7 @@ const { createCanvas, loadImage } = require('canvas');
 const configManager = require('./configManager');
 const logger = require('./logger');
 
-async function generateGif(date, eventType) {
+async function generateGif(date, eventType, options = {}) {
   const settings = configManager.loadSettings();
   const captureDir = configManager.getCapturesDir(date);
   const gifsDir = configManager.getGifsDir();
@@ -17,13 +17,20 @@ async function generateGif(date, eventType) {
   }
   
   // Get all images for the date
-  const images = fs.readdirSync(captureDir)
+  let images = fs.readdirSync(captureDir)
     .filter(f => f.endsWith('.jpg'))
     .sort()
     .map(f => path.join(captureDir, f));
   
   if (images.length === 0) {
     throw new Error(`No images found for date ${date}`);
+  }
+  
+  // For timelapse GIFs, use every other image to reduce file size
+  if (options.skipFrames) {
+    const allCount = images.length;
+    images = images.filter((_, i) => i % 2 === 0);
+    logger.log(`Skipping every other frame: ${allCount} -> ${images.length} images`);
   }
   
   logger.log(`Processing ${images.length} images for GIF`);
@@ -34,15 +41,25 @@ async function generateGif(date, eventType) {
   const width = settings.gif.resizeWidth;
   const height = Math.round(width * aspectRatio);
   
+  // Calculate frame delay: use targetDurationMs if provided, otherwise config default
+  let frameDelay = settings.gif.frameDelayMs;
+  if (options.targetDurationMs) {
+    frameDelay = Math.max(20, Math.floor(options.targetDurationMs / images.length));
+    logger.log(`Dynamic frame delay: ${frameDelay}ms (${images.length} frames, target ${options.targetDurationMs}ms)`);
+  }
+  
+  // Use custom label for filename if provided (e.g. 'timelapse'), otherwise eventType
+  const fileLabel = options.label || eventType;
+  
   // Create GIF encoder
   const encoder = new GIFEncoder(width, height, 'neuquant', true);
-  const outputPath = path.join(gifsDir, `${date}-${eventType}.gif`);
+  const outputPath = path.join(gifsDir, `${date}-${fileLabel}.gif`);
   const writeStream = fs.createWriteStream(outputPath);
   
   encoder.createReadStream().pipe(writeStream);
   
   encoder.start();
-  encoder.setDelay(settings.gif.frameDelayMs);
+  encoder.setDelay(frameDelay);
   encoder.setQuality(10); // 1-30, lower is better quality but slower
   
   // Create canvas for frame rendering
@@ -122,6 +139,26 @@ function getGifs() {
     });
 }
 
+function getGifForDate(date) {
+  const gifsDir = configManager.getGifsDir();
+  const filename = `${date}-timelapse.gif`;
+  const filepath = path.join(gifsDir, filename);
+
+  if (fs.existsSync(filepath)) {
+    const stats = fs.statSync(filepath);
+    return {
+      filename,
+      path: `/gifs/${filename}`,
+      date,
+      size: stats.size,
+      sizeFormatted: formatSize(stats.size),
+      createdAt: stats.birthtime.toISOString()
+    };
+  }
+
+  return null;
+}
+
 function deleteGif(filename) {
   const gifsDir = configManager.getGifsDir();
   const filepath = path.join(gifsDir, filename);
@@ -133,8 +170,15 @@ function deleteGif(filename) {
   return false;
 }
 
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 module.exports = {
   generateGif,
   getGifs,
+  getGifForDate,
   deleteGif
 };

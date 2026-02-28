@@ -147,13 +147,28 @@ router.get('/gifs', (req, res) => {
   }
 });
 
+// Get timelapse GIF for a specific date
+router.get('/gif/:date', (req, res) => {
+  try {
+    const gif = gifGenerator.getGifForDate(req.params.date);
+    res.json({ exists: !!gif, gif });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Generate GIF for a specific date
 router.post('/gif/generate/:date', async (req, res) => {
   try {
     const settings = configManager.loadSettings();
     const eventType = req.body.eventType || settings.capture.eventType;
-    
-    const gifPath = await gifGenerator.generateGif(req.params.date, eventType);
+    const timelapse = req.body.timelapse !== undefined ? req.body.timelapse : false;
+
+    const options = timelapse
+      ? { targetDurationMs: 6000, label: 'timelapse', skipFrames: true }
+      : {};
+
+    const gifPath = await gifGenerator.generateGif(req.params.date, eventType, options);
     res.json({ success: true, path: gifPath });
   } catch (error) {
     res.status(500).json({ error: error.message });

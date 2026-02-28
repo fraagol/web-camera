@@ -183,6 +183,8 @@
 
         <div id="video-container"></div>
 
+        <div id="gif-container"></div>
+
         <div id="captures-grid" class="captures-gallery">
           <div class="empty-state">Select a date to view captures</div>
         </div>
@@ -208,6 +210,7 @@
     let captureDates = [];
     let selectedDate = null;
     let videoGenerating = false;
+    let gifGenerating = false;
     
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -579,6 +582,7 @@
       selectedDate = null;
       document.getElementById('capture-date-picker').value = '';
       document.getElementById('video-container').innerHTML = '';
+      document.getElementById('gif-container').innerHTML = '';
       document.getElementById('captures-count').textContent = '';
       renderDateChips();
       
@@ -626,25 +630,32 @@
     async function loadCapturesForDate(date) {
       const grid = document.getElementById('captures-grid');
       const videoContainer = document.getElementById('video-container');
+      const gifContainer = document.getElementById('gif-container');
       const countEl = document.getElementById('captures-count');
 
       grid.innerHTML = '<div class="empty-state">Loading...</div>';
       videoContainer.innerHTML = '';
+      gifContainer.innerHTML = '';
 
       try {
-        // Load captures and video info in parallel
-        const [capturesRes, videoRes] = await Promise.all([
+        // Load captures, video info, and gif info in parallel
+        const [capturesRes, videoRes, gifRes] = await Promise.all([
           fetch(`/api/captures/${date}`),
-          fetch(`/api/video/${date}`)
+          fetch(`/api/video/${date}`),
+          fetch(`/api/gif/${date}`)
         ]);
 
         const captures = await capturesRes.json();
         const videoData = await videoRes.json();
+        const gifData = await gifRes.json();
 
         countEl.textContent = `${captures.length} captures`;
 
         // Render video section
         renderVideoSection(date, videoData, videoContainer);
+
+        // Render GIF section
+        renderGifSection(date, gifData, gifContainer);
 
         // Render capture thumbnails
         if (captures.length === 0) {
@@ -758,6 +769,102 @@
         }
       } catch (error) {
         showAlert('Failed to delete video', 'error');
+      }
+    }
+
+    // ============ GIF Section (Captures Tab) ============
+
+    function renderGifSection(date, gifData, container) {
+      let gifHtml = '';
+
+      if (gifData.exists && gifData.gif) {
+        const g = gifData.gif;
+        gifHtml = `
+          <div class="gif-section">
+            <h3>🖼 GIF Timelapse - ${date}</h3>
+            <img src="${g.path}?t=${Date.now()}" alt="GIF ${date}" class="gif-preview">
+            <div class="gif-actions">
+              <a href="${g.path}" download class="btn btn-secondary" style="text-decoration: none; padding: 8px 16px; font-size: 0.9rem;">⬇ Download</a>
+              <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.9rem;" onclick="generateGifForDate('${date}')" ${gifGenerating ? 'disabled' : ''}>
+                🔄 Regenerate
+              </button>
+              <button class="btn btn-danger" style="padding: 8px 16px; font-size: 0.9rem;" onclick="deleteGifForDate('${g.filename}', '${date}')">
+                🗑 Delete
+              </button>
+              <span class="gif-meta">${g.sizeFormatted}</span>
+            </div>
+          </div>`;
+      } else {
+        gifHtml = `
+          <div class="gif-section">
+            <h3>🖼 GIF Timelapse - ${date}</h3>
+            <div style="color: #888; margin-bottom: 12px;">No timelapse GIF generated yet for this date.</div>
+            <button class="btn btn-primary" id="btn-gen-gif" onclick="generateGifForDate('${date}')" ${gifGenerating ? 'disabled' : ''}>
+              ${gifGenerating ? '<span class="spinner"></span>Generating...' : '🖼 Generate GIF'}
+            </button>
+          </div>`;
+      }
+
+      container.innerHTML = gifHtml;
+    }
+
+    async function generateGifForDate(date) {
+      if (gifGenerating) return;
+      gifGenerating = true;
+
+      const gifContainer = document.getElementById('gif-container');
+      gifContainer.innerHTML = `
+        <div class="gif-section">
+          <h3>🖼 GIF Timelapse - ${date}</h3>
+          <div style="color: #888; margin-bottom: 12px;">
+            <span class="spinner"></span> Generating GIF... This may take a moment.
+          </div>
+          <button class="btn btn-primary" disabled>
+            <span class="spinner"></span>Generating...
+          </button>
+        </div>`;
+
+      try {
+        const response = await fetch(`/api/gif/generate/${date}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ timelapse: true })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          showAlert('GIF generated successfully!');
+          // Reload gif section
+          const gifRes = await fetch(`/api/gif/${date}`);
+          const gifData = await gifRes.json();
+          renderGifSection(date, gifData, gifContainer);
+        } else {
+          throw new Error(data.error || 'Generation failed');
+        }
+      } catch (error) {
+        showAlert('Failed to generate GIF: ' + error.message, 'error');
+        renderGifSection(date, { exists: false }, gifContainer);
+      } finally {
+        gifGenerating = false;
+      }
+    }
+
+    async function deleteGifForDate(filename, date) {
+      if (!confirm(`Delete timelapse GIF for ${date}?`)) return;
+
+      try {
+        const response = await fetch(`/api/gif/${filename}`, { method: 'DELETE' });
+        const data = await response.json();
+
+        if (data.success) {
+          showAlert('GIF deleted');
+          const gifContainer = document.getElementById('gif-container');
+          renderGifSection(date, { exists: false }, gifContainer);
+        } else {
+          showAlert('Failed to delete GIF', 'error');
+        }
+      } catch (error) {
+        showAlert('Failed to delete GIF', 'error');
       }
     }
   </script>
