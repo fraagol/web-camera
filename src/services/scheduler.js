@@ -3,6 +3,7 @@ const configManager = require('./configManager');
 const camera = require('./camera');
 const sunTimes = require('./sunTimes');
 const gifGenerator = require('./gifGenerator');
+const logger = require('./logger');
 
 // State
 let state = {
@@ -21,20 +22,29 @@ let sunTimesRefreshJob = null;
 let captureWindowJob = null;
 
 function getState() {
-  return { ...state };
+  // Return a clean state object without circular references
+  // (captureInterval and sessionTimeout are Timeout/Interval objects that can't be serialized)
+  return {
+    status: state.status,
+    nextCaptureWindow: state.nextCaptureWindow,
+    captureCount: state.captureCount,
+    maxCaptures: state.maxCaptures,
+    currentSessionDate: state.currentSessionDate,
+    lastError: state.lastError
+  };
 }
 
 async function initialize() {
-  console.log('Initializing scheduler...');
+  logger.log('Initializing scheduler...');
   
   // Refresh sun times daily at 00:05
   sunTimesRefreshJob = cron.schedule('5 0 * * *', async () => {
-    console.log('Daily sun times refresh triggered');
+    logger.log('Daily sun times refresh triggered');
     try {
       await sunTimes.fetchSunTimes();
       await scheduleNextCaptureWindow();
     } catch (error) {
-      console.error('Error in daily sun times refresh:', error.message);
+      logger.error('Error in daily sun times refresh:', error.message);
       state.lastError = error.message;
     }
   }, {
@@ -45,12 +55,12 @@ async function initialize() {
   try {
     await sunTimes.fetchSunTimes();
   } catch (error) {
-    console.error('Initial sun times fetch failed:', error.message);
+    logger.error('Initial sun times fetch failed:', error.message);
   }
   
   await scheduleNextCaptureWindow();
   
-  console.log('Scheduler initialized');
+  logger.log('Scheduler initialized');
 }
 
 async function scheduleNextCaptureWindow() {
@@ -59,7 +69,7 @@ async function scheduleNextCaptureWindow() {
   if (!settings.capture.enabled) {
     state.status = 'idle';
     state.nextCaptureWindow = null;
-    console.log('Capture is disabled');
+    logger.log('Capture is disabled');
     return;
   }
   
@@ -77,21 +87,54 @@ async function scheduleNextCaptureWindow() {
     
     // If we're currently within the capture window, start capturing
     if (now >= start && now <= end) {
-      console.log('Currently within capture window, starting capture');
+      logger.log('Currently within capture window, starting capture');
       await startCaptureSession(end);
       return;
     }
     
-    // If the window has passed for today, we'll capture tomorrow
+    // If the window has passed for today, fetch tomorrow's sun times and schedule
     if (now > end) {
-      console.log('Today\'s capture window has passed, will capture tomorrow');
+      logger.log('Today\'s capture window has passed, scheduling for tomorrow');
       state.status = 'waiting';
+      
+      // Fetch tomorrow's sun times
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      
+      try {
+        await sunTimes.fetchSunTimes(tomorrowStr);
+        const tomorrowEventTime = await sunTimes.getEventTime(settings.capture.eventType, tomorrowStr);
+        const tomorrowWindow = sunTimes.getCaptureWindow(tomorrowEventTime, settings.capture.offsetMinutes);
+        
+        state.nextCaptureWindow = {
+          eventType: settings.capture.eventType,
+          eventTime: tomorrowEventTime.toISOString(),
+          start: tomorrowWindow.start.toISOString(),
+          end: tomorrowWindow.end.toISOString()
+        };
+        
+        const msUntilTomorrowStart = tomorrowWindow.start.getTime() - now.getTime();
+        logger.log(`Scheduling tomorrow's capture to start in ${Math.round(msUntilTomorrowStart / 1000 / 60)} minutes`);
+        
+        if (state.sessionTimeout) {
+          clearTimeout(state.sessionTimeout);
+        }
+        
+        state.sessionTimeout = setTimeout(async () => {
+          const endTime = new Date(state.nextCaptureWindow.end);
+          await startCaptureSession(endTime);
+        }, msUntilTomorrowStart);
+      } catch (error) {
+        logger.error('Error scheduling tomorrow\'s capture:', error.message);
+      }
+      
       return;
     }
     
     // Schedule the capture to start at window start time
     const msUntilStart = start.getTime() - now.getTime();
-    console.log(`Scheduling capture to start in ${Math.round(msUntilStart / 1000 / 60)} minutes`);
+    logger.log(`Scheduling capture to start in ${Math.round(msUntilStart / 1000 / 60)} minutes`);
     
     state.status = 'waiting';
     
@@ -106,7 +149,7 @@ async function scheduleNextCaptureWindow() {
     }, msUntilStart);
     
   } catch (error) {
-    console.error('Error scheduling capture window:', error.message);
+    logger.error('Error scheduling capture window:', error.message);
     state.lastError = error.message;
     state.status = 'idle';
   }
@@ -120,7 +163,7 @@ async function startCaptureSession(endTime) {
   state.currentSessionDate = new Date().toISOString().split('T')[0];
   state.lastError = null;
   
-  console.log(`Starting capture session until ${endTime.toISOString()}`);
+  logger.log(`Starting capture session until ${endTime.toISOString()}`);
   
   // Capture immediately
   await captureImage();
@@ -141,15 +184,15 @@ async function captureImage() {
   try {
     const result = await camera.captureAndSave();
     state.captureCount++;
-    console.log(`Capture #${state.captureCount}: ${result.filename}`);
+    logger.log(`Capture #${state.captureCount}: ${result.filename}`);
   } catch (error) {
-    console.error('Error capturing image:', error.message);
+    logger.error('Error capturing image:', error.message);
     state.lastError = error.message;
   }
 }
 
 async function endCaptureSession() {
-  console.log('Ending capture session');
+  logger.log('Ending capture session');
   
   // Stop capture interval
   if (state.captureInterval) {
@@ -163,14 +206,14 @@ async function endCaptureSession() {
   // Generate GIF if we have captures
   if (captureCount > 0) {
     state.status = 'generating';
-    console.log(`Generating GIF from ${captureCount} images`);
+    logger.log(`Generating GIF from ${captureCount} images`);
     
     try {
       const settings = configManager.loadSettings();
       const gifPath = await gifGenerator.generateGif(sessionDate, settings.capture.eventType);
-      console.log(`GIF generated: ${gifPath}`);
+      logger.log(`GIF generated: ${gifPath}`);
     } catch (error) {
-      console.error('Error generating GIF:', error.message);
+      logger.error('Error generating GIF:', error.message);
       state.lastError = error.message;
     }
   }
@@ -206,7 +249,7 @@ async function manualStart(options = {}) {
   state.currentSessionDate = new Date().toISOString().split('T')[0];
   state.lastError = null;
   
-  console.log(`Manual capture session started (interval: ${intervalSeconds}s, max: ${maxCaptures || 'unlimited'})`);
+  logger.log(`Manual capture session started (interval: ${intervalSeconds}s, max: ${maxCaptures || 'unlimited'})`);
   
   // Capture immediately
   await captureImage();
@@ -235,14 +278,14 @@ async function manualStop() {
     return { success: false, message: 'Not currently capturing' };
   }
   
-  console.log('Manual stop requested');
+  logger.log('Manual stop requested');
   await endCaptureSession();
   
   return { success: true, message: 'Capture session stopped and GIF generated' };
 }
 
 function shutdown() {
-  console.log('Shutting down scheduler...');
+  logger.log('Shutting down scheduler...');
   
   if (sunTimesRefreshJob) {
     sunTimesRefreshJob.stop();

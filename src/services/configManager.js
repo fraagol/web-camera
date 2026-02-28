@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const logger = require('./logger');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
 const CONFIG_DIR = path.join(DATA_DIR, 'config');
@@ -55,7 +56,7 @@ function loadSettings() {
     // Merge with defaults to ensure all keys exist
     return mergeDeep(DEFAULT_SETTINGS, settings);
   } catch (error) {
-    console.error('Error loading settings, using defaults:', error.message);
+    logger.error('Error loading settings, using defaults:', error.message);
     return { ...DEFAULT_SETTINGS };
   }
 }

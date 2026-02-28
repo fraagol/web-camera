@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const configManager = require('./configManager');
+const logger = require('./logger');
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
@@ -20,7 +21,7 @@ async function fetchImage(url, retries = MAX_RETRIES) {
       
       return Buffer.from(response.data);
     } catch (error) {
-      console.error(`Camera fetch attempt ${attempt}/${retries} failed:`, error.message);
+      logger.error(`Camera fetch attempt ${attempt}/${retries} failed:`, error.message);
       
       if (attempt < retries) {
         await sleep(RETRY_DELAY_MS);
@@ -54,7 +55,7 @@ async function captureAndSave() {
   const imageBuffer = await fetchImage(settings.camera.url);
   fs.writeFileSync(filepath, imageBuffer);
   
-  console.log(`Captured image: ${filepath}`);
+  logger.log(`Captured image: ${filepath}`);
   
   return {
     path: filepath,

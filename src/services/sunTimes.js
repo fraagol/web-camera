@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const configManager = require('./configManager');
+const logger = require('./logger');
 
 const SUN_TIMES_FILE = path.join(configManager.getDataDir(), 'config', 'sun-times.json');
 
@@ -35,16 +36,16 @@ async function fetchSunTimes(date = null) {
     // Cache the results
     saveSunTimesCache(sunTimes);
     
-    console.log(`Fetched sun times for ${targetDate}: sunrise=${sunrise}, sunset=${sunset}`);
+    logger.log(`Fetched sun times for ${targetDate}: sunrise=${sunrise}, sunset=${sunset}`);
     
     return sunTimes;
   } catch (error) {
-    console.error('Error fetching sun times:', error.message);
+    logger.error('Error fetching sun times:', error.message);
     
     // Try to return cached data if available
     const cached = loadSunTimesCache();
     if (cached && cached.date === targetDate) {
-      console.log('Using cached sun times');
+      logger.log('Using cached sun times');
       return cached;
     }
     
@@ -59,7 +60,7 @@ function loadSunTimesCache() {
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('Error loading sun times cache:', error.message);
+    logger.error('Error loading sun times cache:', error.message);
   }
   return null;
 }
@@ -72,22 +73,22 @@ function saveSunTimesCache(sunTimes) {
     }
     fs.writeFileSync(SUN_TIMES_FILE, JSON.stringify(sunTimes, null, 2));
   } catch (error) {
-    console.error('Error saving sun times cache:', error.message);
+    logger.error('Error saving sun times cache:', error.message);
   }
 }
 
-async function getEventTime(eventType = null) {
+async function getEventTime(eventType = null, date = null) {
   const settings = configManager.loadSettings();
   const type = eventType || settings.capture.eventType;
   
-  const today = new Date().toISOString().split('T')[0];
+  const targetDate = date || new Date().toISOString().split('T')[0];
   
   // Check cache first
   let sunTimes = loadSunTimesCache();
   
   // Fetch if no cache or cache is for different date
-  if (!sunTimes || sunTimes.date !== today) {
-    sunTimes = await fetchSunTimes(today);
+  if (!sunTimes || sunTimes.date !== targetDate) {
+    sunTimes = await fetchSunTimes(targetDate);
   }
   
   const eventTimeStr = type === 'sunrise' ? sunTimes.sunrise : sunTimes.sunset;

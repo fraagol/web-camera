@@ -4,6 +4,7 @@ const sharp = require('sharp');
 const GIFEncoder = require('gif-encoder-2');
 const { createCanvas, loadImage } = require('canvas');
 const configManager = require('./configManager');
+const logger = require('./logger');
 
 async function generateGif(date, eventType) {
   const settings = configManager.loadSettings();
@@ -25,7 +26,7 @@ async function generateGif(date, eventType) {
     throw new Error(`No images found for date ${date}`);
   }
   
-  console.log(`Processing ${images.length} images for GIF`);
+  logger.log(`Processing ${images.length} images for GIF`);
   
   // Determine output dimensions from first image
   const firstImageMeta = await sharp(images[0]).metadata();
@@ -67,10 +68,10 @@ async function generateGif(date, eventType) {
       encoder.addFrame(ctx);
       
       if ((i + 1) % 10 === 0) {
-        console.log(`Processed ${i + 1}/${images.length} frames`);
+        logger.log(`Processed ${i + 1}/${images.length} frames`);
       }
     } catch (error) {
-      console.error(`Error processing image ${imagePath}:`, error.message);
+      logger.error(`Error processing image ${imagePath}:`, error.message);
       // Continue with other images
     }
   }
@@ -84,7 +85,7 @@ async function generateGif(date, eventType) {
   });
   
   const stats = fs.statSync(outputPath);
-  console.log(`GIF generated: ${outputPath} (${Math.round(stats.size / 1024)} KB)`);
+  logger.log(`GIF generated: ${outputPath} (${Math.round(stats.size / 1024)} KB)`);
   
   return outputPath;
 }

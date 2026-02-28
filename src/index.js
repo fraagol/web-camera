@@ -3,6 +3,7 @@ const path = require('path');
 const configManager = require('./services/configManager');
 const scheduler = require('./services/scheduler');
 const apiRoutes = require('./routes/api');
+const logger = require('./services/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,24 +28,24 @@ configManager.ensureDirectories();
 
 // Initialize scheduler
 scheduler.initialize().catch(error => {
-  console.error('Failed to initialize scheduler:', error.message);
+  logger.error('Failed to initialize scheduler:', error.message);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down...');
+  logger.log('SIGTERM received, shutting down...');
   scheduler.shutdown();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down...');
+  logger.log('SIGINT received, shutting down...');
   scheduler.shutdown();
   process.exit(0);
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Webcam GIF Capture server running on port ${PORT}`);
-  console.log(`Dashboard: http://localhost:${PORT}`);
+  logger.log(`Webcam GIF Capture server running on port ${PORT}`);
+  logger.log(`Dashboard: http://localhost:${PORT}`);
 });

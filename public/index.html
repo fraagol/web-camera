@@ -366,6 +366,7 @@
           <div class="status-item">
             <label>Next Capture</label>
             <div class="value" id="status-next">-</div>
+            <div style="color: #888; font-size: 0.8rem; margin-top: 4px;" id="status-next-date"></div>
           </div>
         </div>
         <div style="margin-top: 15px; text-align: center;">
@@ -604,11 +605,32 @@
         
         if (data.state.nextCaptureWindow) {
           const startTime = new Date(data.state.nextCaptureWindow.start);
+          const eventTime = new Date(data.state.nextCaptureWindow.eventTime);
           nextEventTime = startTime;
-          document.getElementById('status-next').textContent = startTime.toLocaleTimeString();
+          
+          // Display start time (when capturing will begin)
+          document.getElementById('status-next').textContent = startTime.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+          });
+          
+          // Display date and event time
+          const dateStr = startTime.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric'
+          });
+          const eventTypeStr = data.settings.eventType.charAt(0).toUpperCase() + data.settings.eventType.slice(1);
+          const eventTimeStr = eventTime.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit'
+          });
+          
+          document.getElementById('status-next-date').textContent = `${dateStr} (${eventTypeStr} ${eventTimeStr})`;
         } else {
           nextEventTime = null;
           document.getElementById('status-next').textContent = '-';
+          document.getElementById('status-next-date').textContent = '';
         }
         
         // Update button states
