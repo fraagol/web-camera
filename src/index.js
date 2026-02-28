@@ -23,6 +23,9 @@ app.use('/captures', express.static(configManager.getCapturesDir()));
 // Serve GIFs
 app.use('/gifs', express.static(configManager.getGifsDir()));
 
+// Serve videos
+app.use('/videos', express.static(configManager.getVideosDir()));
+
 // Ensure data directories exist
 configManager.ensureDirectories();
 

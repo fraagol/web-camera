@@ -5,6 +5,7 @@ const camera = require('../services/camera');
 const sunTimes = require('../services/sunTimes');
 const scheduler = require('../services/scheduler');
 const gifGenerator = require('../services/gifGenerator');
+const videoGenerator = require('../services/videoGenerator');
 
 // ============ Configuration ============
 
@@ -163,6 +164,48 @@ router.post('/gif/generate/:date', async (req, res) => {
 router.delete('/gif/:filename', (req, res) => {
   try {
     const deleted = gifGenerator.deleteGif(req.params.filename);
+    res.json({ success: deleted });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ Videos ============
+
+// Get all videos
+router.get('/videos', (req, res) => {
+  try {
+    const videos = videoGenerator.getVideos();
+    res.json(videos);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get video for a specific date
+router.get('/video/:date', (req, res) => {
+  try {
+    const video = videoGenerator.getVideoForDate(req.params.date);
+    res.json({ exists: !!video, video });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate video for a specific date
+router.post('/video/generate/:date', async (req, res) => {
+  try {
+    const videoPath = await videoGenerator.generateVideo(req.params.date);
+    res.json({ success: true, path: videoPath });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a video
+router.delete('/video/:filename', (req, res) => {
+  try {
+    const deleted = videoGenerator.deleteVideo(req.params.filename);
     res.json({ success: deleted });
   } catch (error) {
     res.status(500).json({ error: error.message });

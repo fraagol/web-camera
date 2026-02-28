@@ -33,7 +33,8 @@ RUN apk add --no-cache \
     giflib \
     librsvg \
     fontconfig \
-    ttf-dejavu
+    ttf-dejavu \
+    ffmpeg
 
 # Copy node_modules from builder
 COPY --from=builder /app/node_modules ./node_modules

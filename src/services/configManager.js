@@ -32,7 +32,8 @@ function ensureDirectories() {
   const dirs = [
     CONFIG_DIR,
     path.join(DATA_DIR, 'captures'),
-    path.join(DATA_DIR, 'gifs')
+    path.join(DATA_DIR, 'gifs'),
+    path.join(DATA_DIR, 'videos')
   ];
   
   for (const dir of dirs) {
@@ -103,6 +104,10 @@ function getGifsDir() {
   return path.join(DATA_DIR, 'gifs');
 }
 
+function getVideosDir() {
+  return path.join(DATA_DIR, 'videos');
+}
+
 module.exports = {
   loadSettings,
   saveSettings,
@@ -110,6 +115,7 @@ module.exports = {
   getDataDir,
   getCapturesDir,
   getGifsDir,
+  getVideosDir,
   ensureDirectories,
   DEFAULT_SETTINGS
 };

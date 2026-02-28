@@ -335,6 +335,181 @@
       font-size: 1.5rem;
       color: #00d4ff;
     }
+
+    /* Tab navigation */
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #2a2a4a;
+    }
+
+    .tab-btn {
+      padding: 12px 28px;
+      background: transparent;
+      border: none;
+      color: #888;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #ccc;
+    }
+
+    .tab-btn.active {
+      color: #00d4ff;
+      border-bottom-color: #00d4ff;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Captures tab */
+    .captures-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .captures-toolbar input[type="date"] {
+      padding: 10px 14px;
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 6px;
+      color: #eee;
+      font-size: 1rem;
+      color-scheme: dark;
+    }
+
+    .captures-toolbar input[type="date"]:focus {
+      outline: none;
+      border-color: #00d4ff;
+    }
+
+    .date-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+
+    .date-chip {
+      padding: 5px 12px;
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 16px;
+      color: #888;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .date-chip:hover {
+      border-color: #00d4ff;
+      color: #eee;
+    }
+
+    .date-chip.active {
+      background: #00d4ff;
+      color: #1a1a2e;
+      border-color: #00d4ff;
+      font-weight: 600;
+    }
+
+    .captures-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .capture-item {
+      background: #1a1a2e;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .capture-item:hover {
+      transform: scale(1.03);
+    }
+
+    .capture-item img {
+      width: 100%;
+      display: block;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+    }
+
+    .capture-item .info {
+      padding: 8px 10px;
+    }
+
+    .capture-item .info .time {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .video-section {
+      margin-bottom: 20px;
+      background: #16213e;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .video-section h3 {
+      color: #00d4ff;
+      margin-bottom: 12px;
+      font-size: 1.1rem;
+    }
+
+    .video-section video {
+      width: 100%;
+      max-width: 800px;
+      border-radius: 8px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .video-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .video-meta {
+      color: #888;
+      font-size: 0.85rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #00d4ff;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -346,6 +521,12 @@
     
     <div id="alert-container"></div>
     
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+      <button class="tab-btn" onclick="switchTab('captures')">📸 Captures</button>
+    </div>
+
+    <div id="tab-dashboard" class="tab-content active">
     <div class="grid">
       <!-- Status Card -->
       <div class="card">
@@ -492,13 +673,35 @@
         </div>
       </div>
     </div>
+    </div><!-- end tab-dashboard -->
+
+    <div id="tab-captures" class="tab-content">
+      <div class="card">
+        <h2>📸 Capture Gallery</h2>
+        
+        <div class="captures-toolbar">
+          <input type="date" id="capture-date-picker" onchange="onDatePicked(this.value)">
+          <button class="btn btn-secondary" onclick="clearDateFilter()">Show All Dates</button>
+          <span id="captures-count" style="color: #888; font-size: 0.9rem;"></span>
+        </div>
+
+        <div class="date-chips" id="date-chips"></div>
+
+        <div id="video-container"></div>
+
+        <div id="captures-grid" class="captures-gallery">
+          <div class="empty-state">Select a date to view captures</div>
+        </div>
+      </div>
+    </div><!-- end tab-captures -->
+
   </div>
   
-  <!-- Modal for viewing GIFs -->
+  <!-- Modal for viewing GIFs/images -->
   <div class="modal" id="gif-modal" onclick="closeModal()">
     <span class="modal-close">&times;</span>
     <div class="modal-content">
-      <img id="modal-image" src="" alt="GIF">
+      <img id="modal-image" src="" alt="Preview">
     </div>
   </div>
   
@@ -508,6 +711,9 @@
     let statusInterval = null;
     let countdownInterval = null;
     let nextEventTime = null;
+    let captureDates = [];
+    let selectedDate = null;
+    let videoGenerating = false;
     
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -821,6 +1027,245 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeModal();
     });
+
+    // ============ Tab Navigation ============
+
+    function switchTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+
+      const btn = document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`);
+      const tab = document.getElementById(`tab-${tabName}`);
+      if (btn) btn.classList.add('active');
+      if (tab) tab.classList.add('active');
+
+      // Load captures data when switching to captures tab
+      if (tabName === 'captures' && captureDates.length === 0) {
+        loadCaptureDates();
+      }
+    }
+
+    // ============ Captures Gallery ============
+
+    async function loadCaptureDates() {
+      try {
+        const response = await fetch('/api/captures');
+        captureDates = await response.json();
+        renderDateChips();
+      } catch (error) {
+        showAlert('Failed to load capture dates', 'error');
+      }
+    }
+
+    function renderDateChips() {
+      const container = document.getElementById('date-chips');
+      if (captureDates.length === 0) {
+        container.innerHTML = '<span style="color: #888;">No captures available</span>';
+        return;
+      }
+
+      container.innerHTML = captureDates.map(date => `
+        <span class="date-chip ${selectedDate === date ? 'active' : ''}" 
+              onclick="onDatePicked('${date}')">${date}</span>
+      `).join('');
+    }
+
+    function onDatePicked(date) {
+      if (!date) return;
+      selectedDate = date;
+
+      // Sync date picker input
+      document.getElementById('capture-date-picker').value = date;
+      renderDateChips();
+      loadCapturesForDate(date);
+    }
+
+    function clearDateFilter() {
+      selectedDate = null;
+      document.getElementById('capture-date-picker').value = '';
+      document.getElementById('video-container').innerHTML = '';
+      document.getElementById('captures-count').textContent = '';
+      renderDateChips();
+      
+      // Show all dates overview
+      renderAllDatesOverview();
+    }
+
+    async function renderAllDatesOverview() {
+      const grid = document.getElementById('captures-grid');
+      if (captureDates.length === 0) {
+        grid.innerHTML = '<div class="empty-state">No captures available</div>';
+        return;
+      }
+
+      grid.innerHTML = '<div class="empty-state">Loading all captures...</div>';
+
+      // Show first image from each date as a date card
+      const cards = [];
+      for (const date of captureDates) {
+        try {
+          const response = await fetch(`/api/captures/${date}`);
+          const captures = await response.json();
+          if (captures.length > 0) {
+            cards.push({ date, count: captures.length, firstImage: captures[0] });
+          }
+        } catch (e) { /* skip */ }
+      }
+
+      if (cards.length === 0) {
+        grid.innerHTML = '<div class="empty-state">No captures available</div>';
+        return;
+      }
+
+      grid.innerHTML = cards.map(card => `
+        <div class="capture-item" onclick="onDatePicked('${card.date}')">
+          <img src="${card.firstImage.path}" alt="${card.date}" loading="lazy">
+          <div class="info">
+            <div class="time">${card.date}</div>
+            <div style="color: #888; font-size: 0.8rem;">${card.count} captures</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadCapturesForDate(date) {
+      const grid = document.getElementById('captures-grid');
+      const videoContainer = document.getElementById('video-container');
+      const countEl = document.getElementById('captures-count');
+
+      grid.innerHTML = '<div class="empty-state">Loading...</div>';
+      videoContainer.innerHTML = '';
+
+      try {
+        // Load captures and video info in parallel
+        const [capturesRes, videoRes] = await Promise.all([
+          fetch(`/api/captures/${date}`),
+          fetch(`/api/video/${date}`)
+        ]);
+
+        const captures = await capturesRes.json();
+        const videoData = await videoRes.json();
+
+        countEl.textContent = `${captures.length} captures`;
+
+        // Render video section
+        renderVideoSection(date, videoData, videoContainer);
+
+        // Render capture thumbnails
+        if (captures.length === 0) {
+          grid.innerHTML = '<div class="empty-state">No captures for this date</div>';
+          return;
+        }
+
+        grid.innerHTML = captures.map(cap => `
+          <div class="capture-item" onclick="openModal('${cap.path}')">
+            <img src="${cap.path}" alt="${cap.filename}" loading="lazy">
+            <div class="info">
+              <div class="time">${cap.time || cap.filename.replace('.jpg', '').replace(/-/g, ':')}</div>
+            </div>
+          </div>
+        `).join('');
+
+      } catch (error) {
+        grid.innerHTML = '<div class="empty-state">Failed to load captures</div>';
+        showAlert('Failed to load captures', 'error');
+      }
+    }
+
+    function renderVideoSection(date, videoData, container) {
+      let videoHtml = '';
+
+      if (videoData.exists && videoData.video) {
+        const v = videoData.video;
+        videoHtml = `
+          <div class="video-section">
+            <h3>🎬 Video - ${date}</h3>
+            <video controls preload="metadata">
+              <source src="${v.path}" type="video/mp4">
+              Your browser does not support the video element.
+            </video>
+            <div class="video-actions">
+              <a href="${v.path}" download class="btn btn-secondary" style="text-decoration: none; padding: 8px 16px; font-size: 0.9rem;">⬇ Download</a>
+              <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.9rem;" onclick="generateVideoForDate('${date}')" ${videoGenerating ? 'disabled' : ''}>
+                🔄 Regenerate
+              </button>
+              <button class="btn btn-danger" style="padding: 8px 16px; font-size: 0.9rem;" onclick="deleteVideoForDate('${v.filename}', '${date}')">
+                🗑 Delete
+              </button>
+              <span class="video-meta">${v.sizeFormatted}</span>
+            </div>
+          </div>`;
+      } else {
+        videoHtml = `
+          <div class="video-section">
+            <h3>🎬 Video - ${date}</h3>
+            <div style="color: #888; margin-bottom: 12px;">No video generated yet for this date.</div>
+            <button class="btn btn-primary" id="btn-gen-video" onclick="generateVideoForDate('${date}')" ${videoGenerating ? 'disabled' : ''}>
+              ${videoGenerating ? '<span class="spinner"></span>Generating...' : '🎬 Generate Video'}
+            </button>
+          </div>`;
+      }
+
+      container.innerHTML = videoHtml;
+    }
+
+    async function generateVideoForDate(date) {
+      if (videoGenerating) return;
+      videoGenerating = true;
+
+      const videoContainer = document.getElementById('video-container');
+      videoContainer.innerHTML = `
+        <div class="video-section">
+          <h3>🎬 Video - ${date}</h3>
+          <div style="color: #888; margin-bottom: 12px;">
+            <span class="spinner"></span> Generating video... This may take a moment.
+          </div>
+          <button class="btn btn-primary" disabled>
+            <span class="spinner"></span>Generating...
+          </button>
+        </div>`;
+
+      try {
+        const response = await fetch(`/api/video/generate/${date}`, { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+          showAlert('Video generated successfully!');
+          // Reload video section
+          const videoRes = await fetch(`/api/video/${date}`);
+          const videoData = await videoRes.json();
+          renderVideoSection(date, videoData, videoContainer);
+        } else {
+          throw new Error(data.error || 'Generation failed');
+        }
+      } catch (error) {
+        showAlert('Failed to generate video: ' + error.message, 'error');
+        // Re-render without video
+        renderVideoSection(date, { exists: false }, videoContainer);
+      } finally {
+        videoGenerating = false;
+      }
+    }
+
+    async function deleteVideoForDate(filename, date) {
+      if (!confirm(`Delete video for ${date}?`)) return;
+
+      try {
+        const response = await fetch(`/api/video/${filename}`, { method: 'DELETE' });
+        const data = await response.json();
+
+        if (data.success) {
+          showAlert('Video deleted');
+          const videoContainer = document.getElementById('video-container');
+          renderVideoSection(date, { exists: false }, videoContainer);
+        } else {
+          showAlert('Failed to delete video', 'error');
+        }
+      } catch (error) {
+        showAlert('Failed to delete video', 'error');
+      }
+    }
   </script>
 </body>
 </html>
